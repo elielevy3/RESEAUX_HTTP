@@ -5,9 +5,6 @@ package http.server;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 
 /**
@@ -58,33 +55,22 @@ public class WebServer {
           request = in.readLine();
           if (request != null) {
             String[] requestElements = request.split(" ");
-            for (String element: requestElements){
-              System.out.println(element);
+            for(String e: requestElements){
+              System.out.println(e);
             }
             if (requestElements.length >= 2) {
               String action = requestElements[0];
               String resourceName = requestElements[1];
-              String[] resourceNameArray = resourceName.split("/");
-
-              if (resourceNameArray.length >= 1 && action.equals("GET")) {
-                    String fileName = resourceNameArray[resourceNameArray.length - 1];
-                    String baseName = "/home/elie/Documents/INSA/4IF/S1/RESEAUX/TP-HTTP-Code/TP-HTTP-Code/src/http/resources/";
-                    String fileContent = " ";
-                    if (fileName.contains("html") || fileName.contains("txt")) {
-                      fileContent = this.fromFileToString(baseName + fileName);
-                      out.println("HTTP/1.0 200 OK");
-                    }
-                    else {
-                      out.println("HTTP/1.0 404 Not Found");
-                      fileContent = "404 File Not Found";
-                    }
+              if (action.equals("GET")) {
+                    String baseName = "/home/elie/Documents/INSA/4IF/S1/RESEAUX/HTTP/RESEAUX_HTTP/TP-HTTP-Code/TP-HTTP-Code/src/http/resources";
+                    ArrayList<String> response = this.fromFileToString(baseName+resourceName);
+                    out.println("HTTP/1.0 "+response.get(0));
                     out.println("Content-Type: text/html");
                     out.println("Server: Bot");
                     out.println("");
-                    out.println(fileContent);
-
+                    out.println(response.get(1));
               }
-              else if (action.equals("POST") && resourceNameArray.length >= 2) {
+              else if (action.equals("POST")) {
 
               }
               else if (action.equals("PUT")) {
@@ -125,26 +111,29 @@ public class WebServer {
   }
 
 
-  private String fromFileToString(String path) throws IOException {
+  private ArrayList<String> fromFileToString(String path) {
     BufferedReader reader = null;
-    try {
+    ArrayList<String> response = new ArrayList<String>();
+    try{
       reader = new BufferedReader(new FileReader(path));
-    } catch (FileNotFoundException e) {
-      return "404 File Not Found";
+      StringBuilder stringBuilder = new StringBuilder();
+      String line = null;
+      String ls = System.getProperty("line.separator");
+      while ((line = reader.readLine()) != null) {
+        stringBuilder.append(line);
+        stringBuilder.append(ls);
+      }
+      stringBuilder.deleteCharAt(stringBuilder.length() - 1);
+      String content = stringBuilder.toString();
+      reader.close();
+      response.add("200 OK");
+      response.add(content);
     }
-    StringBuilder stringBuilder = new StringBuilder();
-    String line = null;
-    String ls = System.getProperty("line.separator");
-    while ((line = reader.readLine()) != null) {
-      stringBuilder.append(line);
-      stringBuilder.append(ls);
+    catch(IOException e){
+      response.add("404 Not found / File error");
+      response.add("File Not Found / File Error");
     }
-    stringBuilder.deleteCharAt(stringBuilder.length() - 1);
-    reader.close();
-
-    String content = stringBuilder.toString();
-    return content;
+    return response;
   }
-
 }
 
