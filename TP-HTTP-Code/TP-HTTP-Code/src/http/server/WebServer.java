@@ -88,27 +88,34 @@ public class WebServer {
                                         }
                                     }
                                     File file = new File(baseName+fileNameToBeCreated);
-                                    if (file.createNewFile()) {
-                                        System.out.println("File "+fileNameToBeCreated+" created");
+                                    if (fileContentToBePosted.equals("") || fileContentToBePosted == null){
+                                        out.println("HTTP/1.0 400 Bad Request");
+                                        out.println("Content-Type: text/html");
+                                        out.println("Server: Bot");
+                                        out.println("");
+                                        out.println("400 Bad Request");
+                                    }
+                                    else if (file.exists() && !file.isDirectory()) {
+                                        String content = this.fromFileToString(baseName+fileNameToBeCreated).get(1);
                                         FileWriter myWriter = new FileWriter(baseName+fileNameToBeCreated);
-                                        myWriter.write(fileContentToBePosted);
+                                        myWriter.write(content+"\n"+fileContentToBePosted);
                                         myWriter.close();
                                         out.println("HTTP/1.0 200 OK");
                                         out.println("Content-Type: text/html");
                                         out.println("Server: Bot");
                                         out.println("");
-                                        out.println("File"+fileNameToBeCreated+" Created and filled");
+                                        out.println("File "+fileNameToBeCreated+" append with data");
                                     }
                                     else{
                                         System.out.println("File "+fileNameToBeCreated+" already exists");
-                                        // FileWriter myWriter = new FileWriter(baseName+fileNameToBeCreated);
-                                        // myWriter.write(fileContentToBePosted);
-                                        // myWriter.close();
+                                        FileWriter myWriter = new FileWriter(baseName+fileNameToBeCreated);
+                                        myWriter.write(fileContentToBePosted);
+                                        myWriter.close();
                                         out.println("HTTP/1.0 409 Already existing resource");
                                         out.println("Content-Type: text/html");
                                         out.println("Server: Bot");
                                         out.println("");
-                                        out.println(fileNameToBeCreated+" Already exists");
+                                        out.println(fileNameToBeCreated+" created and filled with data");
                                     }
                                 }
                             } else if (action.equals("PUT") && resourceName.split("[?]").length == 2) {
@@ -127,56 +134,51 @@ public class WebServer {
                                         }
                                     }
                                     File file = new File(baseName+fileNameToBeCreated);
-                                    FileWriter myWriter = new FileWriter(baseName+fileNameToBeCreated);
-                                    ArrayList<String> a = fromFileToString(baseName+fileNameToBeCreated);
-                                    String content = a.get(1);
-                                    System.out.println("*******");
-                                    System.out.println(baseName+fileNameToBeCreated);
-                                    System.out.println(content);
-                                    System.out.println("*******");
-                                    if (file.exists() && !file.isDirectory()) {
-                                        /** System.out.println("File "+fileNameToBeCreated+" found!");
-                                        FileWriter myWriter = new FileWriter(baseName+fileNameToBeCreated);
-                                        ArrayList<String> a = fromFileToString(baseName+fileNameToBeCreated);
-                                        String content = a.get(1);
-                                        System.out.println("*******");
-                                        System.out.println(content);
-                                        System.out.println("*******");
-                                        myWriter.append(fileContentToBePosted);
-                                        myWriter.close(); **/
+                                    if (fileContentToBePosted.equals("") || fileContentToBePosted == null){
+                                        out.println("HTTP/1.0 400 Bad Request");
+                                    }
+                                    else if (file.exists() && !file.isDirectory()) {
                                         out.println("HTTP/1.0 200 OK");
-                                        out.println("Content-Type: text/html");
-                                        out.println("Server: Bot");
-                                        out.println("");
-                                        out.println(fileNameToBeCreated+" updated");
                                     }
-                                    else{
-                                        System.out.println("File "+fileNameToBeCreated+" not found");
-                                        out.println("HTTP/1.0 404 Not Found");
-                                        out.println("Content-Type: text/html");
-                                        out.println("Server: Bot");
-                                        out.println("");
-                                        out.println("File not found");
+                                    else {
+                                        out.println("HTTP/1.0 201 Created");
                                     }
+                                    FileWriter myWriter = new FileWriter(baseName+fileNameToBeCreated);
+                                    myWriter.write(fileContentToBePosted);
+                                    myWriter.close();
+                                    out.println("Content-Type: text/html");
+                                    out.println("Server: Bot");
+                                    out.println("");
                                 }
                             } else if (action.equals("DELETE")) {
+                                String[] fileNamePlusParams = resourceName.split("[?]");
+                                // on check s'il a bien des params dans l'url
+                                String fileContentToBePosted = "";
                                 File file = new File(baseName+resourceName);
-                                if(file.exists() && !file.isDirectory()){
+
+                                if (fileNamePlusParams.length >= 2){
+                                    out.println("HTTP/1.0 400 Bad Request");
+                                    out.println("Content-Type: text/html");
+                                    out.println("Server: Bot");
+                                    out.println("");
+                                    out.println("400 Bad Request");
+                                }
+                                else if(file.exists() && !file.isDirectory()){
                                     System.out.println("File "+resourceName+" found and about to be deleted");
-                                    String content = "";
+                                    String body = "";
                                     if (file.delete()){
                                         System.out.println("File "+resourceName+" deleted");
                                         out.println("HTTP/1.0 200 OK");
-                                        content = "File "+resourceName+" deleted";
+                                        body = "File "+resourceName+" deleted";
                                     }
                                     else{
                                         out.println("HTTP/1.0 500 Error");
-                                        content = "Server Error occured";
+                                        body = "Server Error occured";
                                     }
                                     out.println("Content-Type: text/html");
                                     out.println("Server: Bot");
                                     out.println("");
-                                    out.println(content);
+                                    out.println(body);
                                 }
                                 else{
                                     System.out.println("File "+resourceName+" not found");
@@ -193,7 +195,6 @@ public class WebServer {
                                 out.println("Content-Type: text/html");
                                 out.println("Server: Bot");
                                 out.println("");
-                                //out.println(response.get(1));
                             } else {
                                 out.println("HTTP/1.0 400 Bad Request");
                                 out.println("Content-Type: text/html");
@@ -242,7 +243,6 @@ public class WebServer {
                 reader.close();
             }
             else{
-                System.out.println("LA");
                 content = "";
             }
             response.add("200 OK");
