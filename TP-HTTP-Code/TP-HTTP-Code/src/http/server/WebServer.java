@@ -3,10 +3,14 @@
 package http.server;
 
 import javax.imageio.ImageIO;
+import javax.swing.*;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.util.ArrayList;
 
 /**
@@ -60,16 +64,86 @@ public class WebServer {
                     if (request != null) {
                         String[] requestElements = request.split(" ");
                         if (requestElements.length >= 2) {
-                            // String baseName = "/home/elie/Documents/INSA/4IF/S1/RESEAUX/HTTP/RESEAUX_HTTP/TP-HTTP-Code/TP-HTTP-Code/src/http/resources";
                             String action = requestElements[0];
                             String resourceName = requestElements[1];
-                            if (action.equals("GET")) {
-                                ArrayList<String> response = this.fromFileToString(baseName + resourceName);
-                                out.println("HTTP/1.0 " + response.get(0));
+                            if (resourceName.contains("..")){
+                                out.println("HTTP/1.0 403 Forbidden");
                                 out.println("Content-Type: text/html");
                                 out.println("Server: Bot");
                                 out.println("");
-                                out.println(response.get(1));
+                                out.println("403 Forbidden");
+                            }
+                            else if (action.equals("GET")) {
+                                // si on passé des params alors que l'on veut juste consulter une ressource
+                                if (resourceName.contains("?") && !resourceName.contains(".py")){
+                                    out.println("HTTP/1.0 400 Bad Request");
+                                    out.println("Content-Type: text/html");
+                                    out.println("Server: Bot");
+                                    out.println("");
+                                    out.println("400 Bad Request");
+                                }
+                                else if (resourceName.contains(".txt") || resourceName.contains(".html")){
+                                    ArrayList<String> response = this.fromFileToString(baseName + resourceName);
+                                    out.println("HTTP/1.0 " + response.get(0));
+                                    out.println("Content-Type: text/html");
+                                    out.println("Server: Bot");
+                                    out.println("");
+                                    out.println(response.get(1));
+                                }
+                                else if (resourceName.contains(".jpg")){
+                                    out.println("HTTP/1.0 200 OK");
+                                    out.println("Content-Type: image/jpeg");
+                                    out.println("Server: Bot");
+                                    out.println("");
+                                    out.flush();
+                                    File file = new File(baseName+resourceName);
+                                    OutputStream o = remote.getOutputStream();
+                                    Files.copy(file.toPath(), o);
+                                    o.flush();
+                                }
+                                else if (resourceName.contains(".mp3")){
+                                    out.println("HTTP/1.0 200 OK");
+                                    out.println("Content-Type: video/mp3");
+                                    out.println("Server: Bot");
+                                    out.println("");
+                                    out.flush();
+                                    File file = new File(baseName+resourceName);
+                                    OutputStream o = remote.getOutputStream();
+                                    Files.copy(file.toPath(), o);
+                                    o.flush();
+                                }
+                                else if (resourceName.contains(".py")) {
+                                    String[] fileNamePlusParams = resourceName.split("[?]");
+                                    ArrayList<String> scriptParameters = new ArrayList<String>();
+
+                                    if (fileNamePlusParams.length == 2) {
+                                        String[] params = fileNamePlusParams[1].split("&");
+                                        for (String p : params) {
+                                            String[] keyValuePair = p.split("=");
+                                            // si le couple key value est mal formé, il ne sera pas écrit dans le fichier
+                                            if (keyValuePair.length == 2) {
+                                                String key = keyValuePair[0];
+                                                String value = keyValuePair[1];
+                                                scriptParameters.add(value);
+                                            }
+                                        }
+                                        resourceName = fileNamePlusParams[0];
+                                    }
+                                    ArrayList<String> response = this.executeScript(resourceName, scriptParameters, scriptParameters.size());
+
+                                    out.println("HTTP/1.0 "+response.get(0));
+                                    out.println("Content-Type: text/html");
+                                    out.println("Server: Bot");
+                                    out.println("");
+                                    out.println(response.get(1));
+                                }
+                                else {
+                                    out.println("HTTP/1.0 404 Not Found");
+                                    out.println("Content-Type: text/html");
+                                    out.println("Server: Bot");
+                                    out.println("");
+                                    out.println("404 Not Found");
+                                }
                             }
                             else if (action.equals("POST") && resourceName.split("[?]").length == 2) {
                                 String[] fileNamePlusParams = resourceName.split("[?]");
@@ -111,7 +185,7 @@ public class WebServer {
                                         FileWriter myWriter = new FileWriter(baseName+fileNameToBeCreated);
                                         myWriter.write(fileContentToBePosted);
                                         myWriter.close();
-                                        out.println("HTTP/1.0 409 Already existing resource");
+                                        out.println("HTTP/1.0 201 Already existing resource");
                                         out.println("Content-Type: text/html");
                                         out.println("Server: Bot");
                                         out.println("");
@@ -137,15 +211,17 @@ public class WebServer {
                                     if (fileContentToBePosted.equals("") || fileContentToBePosted == null){
                                         out.println("HTTP/1.0 400 Bad Request");
                                     }
-                                    else if (file.exists() && !file.isDirectory()) {
-                                        out.println("HTTP/1.0 200 OK");
-                                    }
                                     else {
-                                        out.println("HTTP/1.0 201 Created");
+                                        if (file.exists() && !file.isDirectory()) {
+                                            out.println("HTTP/1.0 200 OK");
+                                        }
+                                        else {
+                                            out.println("HTTP/1.0 201 Created");
+                                        }
+                                        FileWriter myWriter = new FileWriter(baseName+fileNameToBeCreated);
+                                        myWriter.write(fileContentToBePosted);
+                                        myWriter.close();
                                     }
-                                    FileWriter myWriter = new FileWriter(baseName+fileNameToBeCreated);
-                                    myWriter.write(fileContentToBePosted);
-                                    myWriter.close();
                                     out.println("Content-Type: text/html");
                                     out.println("Server: Bot");
                                     out.println("");
@@ -189,13 +265,8 @@ public class WebServer {
                                     out.println("File not found");
                                 }
 
-                            } else if (action.equals("HEAD")) {
-                                ArrayList<String> response = this.fromFileToString(baseName + resourceName);
-                                out.println("HTTP/1.0 " + response.get(0));
-                                out.println("Content-Type: text/html");
-                                out.println("Server: Bot");
-                                out.println("");
-                            } else {
+                            }
+                            else {
                                 out.println("HTTP/1.0 400 Bad Request");
                                 out.println("Content-Type: text/html");
                                 out.println("Server: Bot");
@@ -251,6 +322,44 @@ public class WebServer {
         } catch (IOException e) {
             response.add("404 Not found / File error");
             response.add("File Not Found / File Error");
+        }
+        return response;
+    }
+
+    private ArrayList<String> executeScript(String fileName, ArrayList<String> parameters, int nbParameters) {
+        ArrayList<String> response = new ArrayList<String>();
+        try {
+            File file = new File(baseName+fileName);
+            if (!file.exists() || file.isDirectory()){
+                throw new FileNotFoundException();
+            }
+
+            String[] cmd = new String[nbParameters+1];
+            cmd[0] = baseName+fileName;
+            for (int i = 0; i < nbParameters; ++i){
+                cmd[i+1] = parameters.get(i);
+            }
+
+            Process p = Runtime.getRuntime().exec(cmd);
+            p.waitFor();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    p.getInputStream()));
+            String body = "";
+            String header = reader.readLine();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                body += line;
+            }
+            response.add(header);
+            response.add(body);
+        }
+        catch (FileNotFoundException e){
+            response.add("404 Not found");
+            response.add("File not found");
+        }
+        catch (IOException | InterruptedException e){
+            response.add("500 Server Error");
+            response.add(" ");
         }
         return response;
     }
